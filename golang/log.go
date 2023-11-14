@@ -18,6 +18,7 @@
 package golang
 
 import (
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -44,6 +45,33 @@ var sugarBaseLogger *zap.SugaredLogger
 
 func ResetLogger() {
 	InitLogger()
+}
+
+func InitSelfLogger(w io.Writer) {
+	writeSyncer := zapcore.AddSync(w)
+	isStdOut := utils.GetenvWithDef(ENABLE_CONSOLE_APPENDER, "false")
+	if isStdOut == "true" {
+		writeSyncer = os.Stdout
+	}
+	encoder := getEncoder()
+
+	var atomicLevel = zap.NewAtomicLevel()
+	switch strings.ToLower(os.Getenv(CLIENT_LOG_LEVEL)) {
+	case "debug":
+		atomicLevel.SetLevel(zap.DebugLevel)
+	case "warn":
+		atomicLevel.SetLevel(zap.WarnLevel)
+	case "error":
+		atomicLevel.SetLevel(zap.ErrorLevel)
+	default:
+		atomicLevel.SetLevel(zap.InfoLevel)
+	}
+
+	core := zapcore.NewCore(encoder, writeSyncer, atomicLevel)
+
+	logger := zap.New(core, zap.AddCaller())
+	sugarBaseLogger = logger.Sugar()
+
 }
 
 func InitLogger() {
